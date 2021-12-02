@@ -24,7 +24,7 @@ type PlayerSkill struct {
 	PlayerID  uuid.UUID `json:"player_id"`
 	SkillID   uuid.UUID `json:"skill_id"`
 	CreatedAt time.Time `json:"created_at"`
-	Value     int32     `json:"value"`
+	Value     int16     `json:"value"`
 }
 
 type PlayerTeam struct {

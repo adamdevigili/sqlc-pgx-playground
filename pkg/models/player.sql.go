@@ -14,18 +14,19 @@ import (
 
 const CreatePlayer = `-- name: CreatePlayer :one
 INSERT INTO player (
-  id, first_name, last_name, name
+  id, first_name, last_name, name, skills
 ) VALUES (
-  $1, $2, $3, $4
+  $1, $2, $3, $4, $5
 )
 RETURNING id, name, created_at, updated_at, first_name, last_name, skills
 `
 
 type CreatePlayerParams struct {
-	ID        uuid.UUID `json:"id"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Name      string    `json:"name"`
+	ID        uuid.UUID    `json:"id"`
+	FirstName string       `json:"first_name"`
+	LastName  string       `json:"last_name"`
+	Name      string       `json:"name"`
+	Skills    pgtype.JSONB `json:"skills"`
 }
 
 func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error) {
@@ -34,6 +35,7 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 		arg.FirstName,
 		arg.LastName,
 		arg.Name,
+		arg.Skills,
 	)
 	var i Player
 	err := row.Scan(

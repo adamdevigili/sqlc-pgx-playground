@@ -2,20 +2,43 @@ package main
 
 import (
 	"github.com/google/uuid"
+	"github.com/labstack/gommon/log"
 	"github.com/pioz/faker"
 	"tutorial.sqlc.dev/app/pkg/models"
 )
 
 var playersToGenerate = 30
 
-func generateSeedData() ([]*models.CreatePlayerParams, []*models.CreateTeamParams, []*models.AddPlayerToTeamParams, []*models.CreateSkillParams) {
+func generateSeedData() (
+	[]*models.CreatePlayerParams,
+	[]*models.CreateTeamParams,
+	[]*models.AddPlayerToTeamParams,
+	[]*models.CreateSkillParams,
+) {
 
 	seedPlayers := generateSeedPlayers()
+	// seedPlayerSkills := generateSeedPlayerSkills(seedPlayers)
 	seedTeams := generateSeedTeams(seedPlayers)
 	seedPlayerTeams := generateSeedPlayerTeams(seedPlayers, seedTeams)
 
-	return playerToCreateParams(seedPlayers), teamToCreateParams(seedTeams), playerTeamToCreateParams(seedPlayerTeams), skillToCreateParams(seedSkills)
+	return playerToCreateParams(seedPlayers),
+		teamToCreateParams(seedTeams),
+		playerTeamToCreateParams(seedPlayerTeams),
+		skillToCreateParams(seedSkills)
+	// playerSkillToCreateParams(seedPlayerSkills)
 }
+
+type skillJSON struct {
+	ID    uuid.UUID `json:"id"`
+	Name  string    `json:"name"`
+	Value int16     `json:"value"`
+}
+
+type skillsJSON struct {
+	Skills []skillJSON `json:"skills"`
+}
+
+type test map[string]interface{}
 
 func generateSeedPlayers() []*models.Player {
 	faker.SetSeed(623)
@@ -30,8 +53,24 @@ func generateSeedPlayers() []*models.Player {
 			ID:        uuid.New(),
 		}
 
+		sJ := []skillJSON{}
+		for _, s := range seedSkills {
+			sJ = append(sJ, skillJSON{
+				ID:    s.ID,
+				Name:  s.Name,
+				Value: int16(faker.IntInRange(1, 10)),
+			})
+		}
+
+		// log.Infof("%+v", sJ)
+
+		// sJBytes, _ := json.Marshal(sJ)
+		p.Skills.Set(sJ)
+
 		players[i] = p
 	}
+
+	log.Info(players[0])
 
 	return players
 }
@@ -73,6 +112,24 @@ func generateSeedPlayerTeams(seedPlayers []*models.Player, seedTeams []*models.T
 	return playerTeams
 }
 
+func generateSeedPlayerSkills(seedPlayers []*models.Player) []*models.PlayerSkill {
+	playerSkills := make([]*models.PlayerSkill, len(seedPlayers)*len(seedSkills))
+
+	log.Info("length of playerskills", len(playerSkills))
+
+	for i := 0; i < len(seedPlayers); i++ {
+		for _, s := range seedSkills {
+			playerSkills = append(playerSkills, &models.PlayerSkill{
+				PlayerID: seedPlayers[i].ID,
+				SkillID:  s.ID,
+				Value:    int16(faker.IntInRange(1, 10)),
+			})
+		}
+	}
+
+	return playerSkills
+}
+
 func playerToCreateParams(players []*models.Player) []*models.CreatePlayerParams {
 	r := make([]*models.CreatePlayerParams, len(players))
 	for i, p := range players {
@@ -81,6 +138,7 @@ func playerToCreateParams(players []*models.Player) []*models.CreatePlayerParams
 			Name:      p.Name,
 			FirstName: p.FirstName,
 			LastName:  p.LastName,
+			Skills:    p.Skills,
 		}
 	}
 
@@ -99,9 +157,9 @@ func teamToCreateParams(teams []*models.Team) []*models.CreateTeamParams {
 	return r
 }
 
-func playerTeamToCreateParams(playerteams []*models.PlayerTeam) []*models.AddPlayerToTeamParams {
-	r := make([]*models.AddPlayerToTeamParams, len(playerteams))
-	for i, t := range playerteams {
+func playerTeamToCreateParams(playerTeams []*models.PlayerTeam) []*models.AddPlayerToTeamParams {
+	r := make([]*models.AddPlayerToTeamParams, len(playerTeams))
+	for i, t := range playerTeams {
 		r[i] = &models.AddPlayerToTeamParams{
 			PlayerID: t.PlayerID,
 			TeamID:   t.TeamID,
@@ -123,6 +181,20 @@ func skillToCreateParams(skills []*models.Skill) []*models.CreateSkillParams {
 
 	return r
 }
+
+// func playerSkillToCreateParams(playerSkills []*models.PlayerSkill) []*models.AddSkillToPlayerParams {
+// 	r := make([]*models.AddSkillToPlayerParams, len(playerSkills))
+// 	log.Info(len(r))
+// 	for i, s := range playerSkills {
+// 		r[i] = &models.AddSkillToPlayerParams{
+// 			PlayerID: s.PlayerID,
+// 			SkillID:  s.SkillID,
+// 			Value:    s.Value,
+// 		}
+// 	}
+
+// 	return r
+// }
 
 var seedSkills = []*models.Skill{
 	{

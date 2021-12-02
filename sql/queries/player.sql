@@ -18,9 +18,9 @@ SELECT *
 
 -- name: CreatePlayer :one
 INSERT INTO player (
-  id, first_name, last_name, name
+  id, first_name, last_name, name, skills
 ) VALUES (
-  $1, $2, $3, $4
+  $1, $2, $3, $4, $5
 )
 RETURNING *;
 

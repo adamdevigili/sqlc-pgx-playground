@@ -20,7 +20,7 @@ INSERT INTO player_skill (
 type AddSkillToPlayerParams struct {
 	PlayerID uuid.UUID `json:"player_id"`
 	SkillID  uuid.UUID `json:"skill_id"`
-	Value    int32     `json:"value"`
+	Value    int16     `json:"value"`
 }
 
 func (q *Queries) AddSkillToPlayer(ctx context.Context, arg AddSkillToPlayerParams) error {
