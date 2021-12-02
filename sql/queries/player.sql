@@ -9,20 +9,18 @@ SELECT *
 SELECT * FROM player
 ORDER BY name;
 
--- name: ListPlayersByTeamID :many
-SELECT *
-  FROM player
-  JOIN player_team ON player_team.player_id = player.id
-  JOIN team ON player_team.team_id = team.id
-  WHERE team.id = $1;
-
 -- name: CreatePlayer :one
 INSERT INTO player (
-  id, first_name, last_name, name, skills
+  id, first_name, last_name, name, skills, power_scores
 ) VALUES (
-  $1, $2, $3, $4, $5
+  $1, $2, $3, $4, $5, $6
 )
 RETURNING *;
+
+-- name: AddPlayerToTeamIDList :exec
+UPDATE player
+	SET teams = array_append(teams, sqlc.arg(team_id))
+	WHERE id = sqlc.arg(player_id);
 
 -- name: DeletePlayer :exec
 DELETE FROM player

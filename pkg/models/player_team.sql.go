@@ -52,23 +52,68 @@ func (q *Queries) DeleteAllPlayerTeams(ctx context.Context) error {
 	return err
 }
 
-const ListPlayersOnTeam = `-- name: ListPlayersOnTeam :many
-SELECT player_id, team_id, joined_at 
-    FROM player_team
-    WHERE team_id = $1
-    ORDER BY name
+const ListPlayersByTeamID = `-- name: ListPlayersByTeamID :many
+SELECT p.id, p.name, p.created_at, p.updated_at, p.first_name, p.last_name, p.skills, p.power_scores
+  FROM player_team pt
+  JOIN player p ON p.id = pt.player_id
+  WHERE pt.team_id = $1
 `
 
-func (q *Queries) ListPlayersOnTeam(ctx context.Context, teamID uuid.UUID) ([]PlayerTeam, error) {
-	rows, err := q.db.Query(ctx, ListPlayersOnTeam, teamID)
+func (q *Queries) ListPlayersByTeamID(ctx context.Context, teamID uuid.UUID) ([]Player, error) {
+	rows, err := q.db.Query(ctx, ListPlayersByTeamID, teamID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []PlayerTeam
+	var items []Player
 	for rows.Next() {
-		var i PlayerTeam
-		if err := rows.Scan(&i.PlayerID, &i.TeamID, &i.JoinedAt); err != nil {
+		var i Player
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.FirstName,
+			&i.LastName,
+			&i.Skills,
+			&i.PowerScores,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const ListTeamsByPlayerID = `-- name: ListTeamsByPlayerID :many
+SELECT t.id, t.name, t.created_at, t.updated_at, t.sport_name, t.power_score, t.wins, t.losses
+  FROM player_team pt
+  JOIN team t ON t.id = pt.team_id
+  WHERE pt.player_id = $1
+`
+
+func (q *Queries) ListTeamsByPlayerID(ctx context.Context, playerID uuid.UUID) ([]Team, error) {
+	rows, err := q.db.Query(ctx, ListTeamsByPlayerID, playerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Team
+	for rows.Next() {
+		var i Team
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.SportName,
+			&i.PowerScore,
+			&i.Wins,
+			&i.Losses,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

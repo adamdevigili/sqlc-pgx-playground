@@ -5,5 +5,6 @@ CREATE TABLE IF NOT EXISTS player (
   updated_at timestamp,
   first_name text NOT NULL,
   last_name  text NOT NULL,
-  skills jsonb
+  skills jsonb,
+  power_scores jsonb
 );

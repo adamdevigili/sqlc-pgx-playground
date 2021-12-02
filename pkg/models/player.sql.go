@@ -12,21 +12,38 @@ import (
 	"github.com/jackc/pgtype"
 )
 
+const AddPlayerToTeamIDList = `-- name: AddPlayerToTeamIDList :exec
+UPDATE player
+	SET teams = array_append(teams, $1)
+	WHERE id = $2
+`
+
+type AddPlayerToTeamIDListParams struct {
+	TeamID   interface{} `json:"team_id"`
+	PlayerID uuid.UUID   `json:"player_id"`
+}
+
+func (q *Queries) AddPlayerToTeamIDList(ctx context.Context, arg AddPlayerToTeamIDListParams) error {
+	_, err := q.db.Exec(ctx, AddPlayerToTeamIDList, arg.TeamID, arg.PlayerID)
+	return err
+}
+
 const CreatePlayer = `-- name: CreatePlayer :one
 INSERT INTO player (
-  id, first_name, last_name, name, skills
+  id, first_name, last_name, name, skills, power_scores
 ) VALUES (
-  $1, $2, $3, $4, $5
+  $1, $2, $3, $4, $5, $6
 )
-RETURNING id, name, created_at, updated_at, first_name, last_name, skills
+RETURNING id, name, created_at, updated_at, first_name, last_name, skills, power_scores
 `
 
 type CreatePlayerParams struct {
-	ID        uuid.UUID    `json:"id"`
-	FirstName string       `json:"first_name"`
-	LastName  string       `json:"last_name"`
-	Name      string       `json:"name"`
-	Skills    pgtype.JSONB `json:"skills"`
+	ID          uuid.UUID    `json:"id"`
+	FirstName   string       `json:"first_name"`
+	LastName    string       `json:"last_name"`
+	Name        string       `json:"name"`
+	Skills      pgtype.JSONB `json:"skills"`
+	PowerScores pgtype.JSONB `json:"power_scores"`
 }
 
 func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Player, error) {
@@ -36,6 +53,7 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 		arg.LastName,
 		arg.Name,
 		arg.Skills,
+		arg.PowerScores,
 	)
 	var i Player
 	err := row.Scan(
@@ -46,6 +64,7 @@ func (q *Queries) CreatePlayer(ctx context.Context, arg CreatePlayerParams) (Pla
 		&i.FirstName,
 		&i.LastName,
 		&i.Skills,
+		&i.PowerScores,
 	)
 	return i, err
 }
@@ -70,7 +89,7 @@ func (q *Queries) DeletePlayer(ctx context.Context, id uuid.UUID) error {
 }
 
 const GetPlayer = `-- name: GetPlayer :one
-SELECT player.id, player.name, player.created_at, player.updated_at, first_name, last_name, skills, player_id, team_id, joined_at, team.id, team.name, team.created_at, team.updated_at
+SELECT player.id, player.name, player.created_at, player.updated_at, first_name, last_name, skills, power_scores, player_id, team_id, joined_at, team.id, team.name, team.created_at, team.updated_at, sport_name, power_score, wins, losses
   FROM player
   JOIN player_team ON player_team.player_id = player.id
   JOIN team ON player_team.team_id = team.id
@@ -85,6 +104,7 @@ type GetPlayerRow struct {
 	FirstName   string       `json:"first_name"`
 	LastName    string       `json:"last_name"`
 	Skills      pgtype.JSONB `json:"skills"`
+	PowerScores pgtype.JSONB `json:"power_scores"`
 	PlayerID    uuid.UUID    `json:"player_id"`
 	TeamID      uuid.UUID    `json:"team_id"`
 	JoinedAt    time.Time    `json:"joined_at"`
@@ -92,6 +112,10 @@ type GetPlayerRow struct {
 	Name_2      string       `json:"name_2"`
 	CreatedAt_2 time.Time    `json:"created_at_2"`
 	UpdatedAt_2 sql.NullTime `json:"updated_at_2"`
+	SportName   string       `json:"sport_name"`
+	PowerScore  float32      `json:"power_score"`
+	Wins        int16        `json:"wins"`
+	Losses      int16        `json:"losses"`
 }
 
 func (q *Queries) GetPlayer(ctx context.Context, id uuid.UUID) (GetPlayerRow, error) {
@@ -105,6 +129,7 @@ func (q *Queries) GetPlayer(ctx context.Context, id uuid.UUID) (GetPlayerRow, er
 		&i.FirstName,
 		&i.LastName,
 		&i.Skills,
+		&i.PowerScores,
 		&i.PlayerID,
 		&i.TeamID,
 		&i.JoinedAt,
@@ -112,12 +137,16 @@ func (q *Queries) GetPlayer(ctx context.Context, id uuid.UUID) (GetPlayerRow, er
 		&i.Name_2,
 		&i.CreatedAt_2,
 		&i.UpdatedAt_2,
+		&i.SportName,
+		&i.PowerScore,
+		&i.Wins,
+		&i.Losses,
 	)
 	return i, err
 }
 
 const ListPlayers = `-- name: ListPlayers :many
-SELECT id, name, created_at, updated_at, first_name, last_name, skills FROM player
+SELECT id, name, created_at, updated_at, first_name, last_name, skills, power_scores FROM player
 ORDER BY name
 `
 
@@ -138,66 +167,7 @@ func (q *Queries) ListPlayers(ctx context.Context) ([]Player, error) {
 			&i.FirstName,
 			&i.LastName,
 			&i.Skills,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const ListPlayersByTeamID = `-- name: ListPlayersByTeamID :many
-SELECT player.id, player.name, player.created_at, player.updated_at, first_name, last_name, skills, player_id, team_id, joined_at, team.id, team.name, team.created_at, team.updated_at
-  FROM player
-  JOIN player_team ON player_team.player_id = player.id
-  JOIN team ON player_team.team_id = team.id
-  WHERE team.id = $1
-`
-
-type ListPlayersByTeamIDRow struct {
-	ID          uuid.UUID    `json:"id"`
-	Name        string       `json:"name"`
-	CreatedAt   time.Time    `json:"created_at"`
-	UpdatedAt   sql.NullTime `json:"updated_at"`
-	FirstName   string       `json:"first_name"`
-	LastName    string       `json:"last_name"`
-	Skills      pgtype.JSONB `json:"skills"`
-	PlayerID    uuid.UUID    `json:"player_id"`
-	TeamID      uuid.UUID    `json:"team_id"`
-	JoinedAt    time.Time    `json:"joined_at"`
-	ID_2        uuid.UUID    `json:"id_2"`
-	Name_2      string       `json:"name_2"`
-	CreatedAt_2 time.Time    `json:"created_at_2"`
-	UpdatedAt_2 sql.NullTime `json:"updated_at_2"`
-}
-
-func (q *Queries) ListPlayersByTeamID(ctx context.Context, id uuid.UUID) ([]ListPlayersByTeamIDRow, error) {
-	rows, err := q.db.Query(ctx, ListPlayersByTeamID, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListPlayersByTeamIDRow
-	for rows.Next() {
-		var i ListPlayersByTeamIDRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Name,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.FirstName,
-			&i.LastName,
-			&i.Skills,
-			&i.PlayerID,
-			&i.TeamID,
-			&i.JoinedAt,
-			&i.ID_2,
-			&i.Name_2,
-			&i.CreatedAt_2,
-			&i.UpdatedAt_2,
+			&i.PowerScores,
 		); err != nil {
 			return nil, err
 		}

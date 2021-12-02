@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -38,16 +39,20 @@ func run() error {
 
 	// goose.AddMigration()
 
-	queries := models.New(db)
+	q := models.New(db)
 
 	// delete existing players
-	queries.DeleteAllPlayers(ctx)
+	q.DeleteAllPlayers(ctx)
 
 	// delete existing players
-	queries.DeleteAllTeams(ctx)
+	q.DeleteAllTeams(ctx)
+
+	q.DeleteAllSkills(ctx)
+
+	q.DeleteAllSports(ctx)
 
 	// delete existing players
-	queries.DeleteAllPlayerTeams(ctx)
+	q.DeleteAllPlayerTeams(ctx)
 
 	// insert seed players
 	// players := generateSeedPlayers()
@@ -84,11 +89,19 @@ func run() error {
 
 	}
 
-	players, teams, playerTeams, skills := generateSeedData()
+	players, teams, playerTeams, skills, sports := generateSeedData()
 
 	log.Info("adding skills")
 	for _, s := range skills {
-		_, err := queries.CreateSkill(ctx, *s)
+		_, err := q.CreateSkill(ctx, *s)
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Info("adding sports")
+	for _, s := range sports {
+		_, err := q.CreateSport(ctx, *s)
 		if err != nil {
 			return err
 		}
@@ -98,7 +111,7 @@ func run() error {
 	log.Infof("%+v", players[0])
 
 	for _, p := range players {
-		_, err := queries.CreatePlayer(ctx, *p)
+		_, err := q.CreatePlayer(ctx, *p)
 		if err != nil {
 			return err
 		}
@@ -114,7 +127,7 @@ func run() error {
 
 	log.Info("adding teams")
 	for _, t := range teams {
-		_, err := queries.CreateTeam(ctx, *t)
+		_, err := q.CreateTeam(ctx, *t)
 		if err != nil {
 			return err
 		}
@@ -122,11 +135,18 @@ func run() error {
 
 	log.Info("adding playerTeams")
 	for _, pt := range playerTeams {
-		err := queries.AddPlayerToTeam(ctx, *pt)
+		err := q.AddPlayerToTeam(ctx, *pt)
 		if err != nil {
 			return err
 		}
 	}
+
+	fetchedPlayer, err := q.GetPlayer(ctx, players[0].ID)
+	if err != nil {
+		return err
+	}
+	fP, _ := json.Marshal(fetchedPlayer)
+	log.Info(string(fP))
 
 	// log.Println(insertedPlayer)
 

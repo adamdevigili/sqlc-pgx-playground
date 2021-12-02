@@ -11,13 +11,14 @@ import (
 )
 
 type Player struct {
-	ID        uuid.UUID    `json:"id"`
-	Name      string       `json:"name"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt sql.NullTime `json:"updated_at"`
-	FirstName string       `json:"first_name"`
-	LastName  string       `json:"last_name"`
-	Skills    pgtype.JSONB `json:"skills"`
+	ID          uuid.UUID    `json:"id"`
+	Name        string       `json:"name"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   sql.NullTime `json:"updated_at"`
+	FirstName   string       `json:"first_name"`
+	LastName    string       `json:"last_name"`
+	Skills      pgtype.JSONB `json:"skills"`
+	PowerScores pgtype.JSONB `json:"power_scores"`
 }
 
 type PlayerSkill struct {
@@ -42,13 +43,23 @@ type Skill struct {
 }
 
 type Sport struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID                      uuid.UUID    `json:"id"`
+	Name                    string       `json:"name"`
+	CreatedAt               time.Time    `json:"created_at"`
+	UpdatedAt               sql.NullTime `json:"updated_at"`
+	Description             string       `json:"description"`
+	SkillWeights            pgtype.JSONB `json:"skill_weights"`
+	MaxActivePlayersPerTeam int16        `json:"max_active_players_per_team"`
+	MaxPlayersPerTeam       int16        `json:"max_players_per_team"`
 }
 
 type Team struct {
-	ID        uuid.UUID    `json:"id"`
-	Name      string       `json:"name"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt sql.NullTime `json:"updated_at"`
+	ID         uuid.UUID    `json:"id"`
+	Name       string       `json:"name"`
+	CreatedAt  time.Time    `json:"created_at"`
+	UpdatedAt  sql.NullTime `json:"updated_at"`
+	SportName  string       `json:"sport_name"`
+	PowerScore float32      `json:"power_score"`
+	Wins       int16        `json:"wins"`
+	Losses     int16        `json:"losses"`
 }

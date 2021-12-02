@@ -6,17 +6,17 @@ WHERE id = $1 LIMIT 1;
 SELECT * FROM team
 ORDER BY name;
 
--- name: ListTeamsByPlayerID :many
-SELECT *
-  FROM player_team pt
-  JOIN team ON team.id = pt.team_id
-  WHERE pt.player_id = $1;
+-- name: ListTeamsForPlayer :many
+SELECT t.* 
+	FROM player p
+	JOIN team t ON t.id = ANY(p.teams)
+	WHERE p.id = $1;
 
 -- name: CreateTeam :one
 INSERT INTO team (
-  id, name
+  id, name, sport_name, power_score
 ) VALUES (
-  $1, $2
+  $1, $2, $3, $4
 )
 RETURNING *;
 

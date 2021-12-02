@@ -5,34 +5,43 @@ package models
 
 import (
 	"context"
-	"database/sql"
-	"time"
 
 	"github.com/google/uuid"
 )
 
 const CreateTeam = `-- name: CreateTeam :one
 INSERT INTO team (
-  id, name
+  id, name, sport_name, power_score
 ) VALUES (
-  $1, $2
+  $1, $2, $3, $4
 )
-RETURNING id, name, created_at, updated_at
+RETURNING id, name, created_at, updated_at, sport_name, power_score, wins, losses
 `
 
 type CreateTeamParams struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID         uuid.UUID `json:"id"`
+	Name       string    `json:"name"`
+	SportName  string    `json:"sport_name"`
+	PowerScore float32   `json:"power_score"`
 }
 
 func (q *Queries) CreateTeam(ctx context.Context, arg CreateTeamParams) (Team, error) {
-	row := q.db.QueryRow(ctx, CreateTeam, arg.ID, arg.Name)
+	row := q.db.QueryRow(ctx, CreateTeam,
+		arg.ID,
+		arg.Name,
+		arg.SportName,
+		arg.PowerScore,
+	)
 	var i Team
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SportName,
+		&i.PowerScore,
+		&i.Wins,
+		&i.Losses,
 	)
 	return i, err
 }
@@ -57,7 +66,7 @@ func (q *Queries) DeleteTeam(ctx context.Context, id uuid.UUID) error {
 }
 
 const GetTeam = `-- name: GetTeam :one
-SELECT id, name, created_at, updated_at FROM team
+SELECT id, name, created_at, updated_at, sport_name, power_score, wins, losses FROM team
 WHERE id = $1 LIMIT 1
 `
 
@@ -69,12 +78,16 @@ func (q *Queries) GetTeam(ctx context.Context, id uuid.UUID) (Team, error) {
 		&i.Name,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SportName,
+		&i.PowerScore,
+		&i.Wins,
+		&i.Losses,
 	)
 	return i, err
 }
 
 const ListTeams = `-- name: ListTeams :many
-SELECT id, name, created_at, updated_at FROM team
+SELECT id, name, created_at, updated_at, sport_name, power_score, wins, losses FROM team
 ORDER BY name
 `
 
@@ -92,6 +105,10 @@ func (q *Queries) ListTeams(ctx context.Context) ([]Team, error) {
 			&i.Name,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SportName,
+			&i.PowerScore,
+			&i.Wins,
+			&i.Losses,
 		); err != nil {
 			return nil, err
 		}
@@ -103,40 +120,31 @@ func (q *Queries) ListTeams(ctx context.Context) ([]Team, error) {
 	return items, nil
 }
 
-const ListTeamsByPlayerID = `-- name: ListTeamsByPlayerID :many
-SELECT player_id, team_id, joined_at, id, name, created_at, updated_at
-  FROM player_team pt
-  JOIN team ON team.id = pt.team_id
-  WHERE pt.player_id = $1
+const ListTeamsForPlayer = `-- name: ListTeamsForPlayer :many
+SELECT t.id, t.name, t.created_at, t.updated_at, t.sport_name, t.power_score, t.wins, t.losses 
+	FROM player p
+	JOIN team t ON t.id = ANY(p.teams)
+	WHERE p.id = $1
 `
 
-type ListTeamsByPlayerIDRow struct {
-	PlayerID  uuid.UUID    `json:"player_id"`
-	TeamID    uuid.UUID    `json:"team_id"`
-	JoinedAt  time.Time    `json:"joined_at"`
-	ID        uuid.UUID    `json:"id"`
-	Name      string       `json:"name"`
-	CreatedAt time.Time    `json:"created_at"`
-	UpdatedAt sql.NullTime `json:"updated_at"`
-}
-
-func (q *Queries) ListTeamsByPlayerID(ctx context.Context, playerID uuid.UUID) ([]ListTeamsByPlayerIDRow, error) {
-	rows, err := q.db.Query(ctx, ListTeamsByPlayerID, playerID)
+func (q *Queries) ListTeamsForPlayer(ctx context.Context, id uuid.UUID) ([]Team, error) {
+	rows, err := q.db.Query(ctx, ListTeamsForPlayer, id)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListTeamsByPlayerIDRow
+	var items []Team
 	for rows.Next() {
-		var i ListTeamsByPlayerIDRow
+		var i Team
 		if err := rows.Scan(
-			&i.PlayerID,
-			&i.TeamID,
-			&i.JoinedAt,
 			&i.ID,
 			&i.Name,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SportName,
+			&i.PowerScore,
+			&i.Wins,
+			&i.Losses,
 		); err != nil {
 			return nil, err
 		}
